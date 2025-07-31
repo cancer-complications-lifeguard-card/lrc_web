@@ -24,7 +24,7 @@
 ### 环境要求
 
 - Node.js 18.0 或更高版本
-- npm 或 yarn 包管理器
+- pnpm 包管理器（推荐）或 npm/yarn
 - Supabase 账户（用于数据库和实时功能）
 
 ### 安装步骤
@@ -35,13 +35,23 @@
    cd xiaohongka
    ```
 
-2. **⚠️ 重要：安装依赖**
+2. **⚠️ 重要：安装 pnpm（如果尚未安装）**
    ```bash
-   # 必须先安装依赖，否则会出现 "next: command not found" 错误
-   npm install
+   # 全局安装 pnpm
+   npm install -g pnpm
+   
+   # 或使用 corepack（Node.js 16.10+）
+   corepack enable
+   corepack prepare pnpm@latest --activate
    ```
 
-3. **环境配置**
+3. **安装依赖**
+   ```bash
+   # 必须先安装依赖，否则会出现 "next: command not found" 错误
+   pnpm install
+   ```
+
+4. **环境配置**
    ```bash
    # 复制环境变量模板（如果存在）
    cp .env.example .env.local
@@ -50,36 +60,36 @@
    touch .env
    ```
 
-4. **配置 Supabase**
+5. **配置 Supabase**
    ```bash
    # 在 .env 文件中添加以下配置
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
-5. **构建项目（可选）**
+6. **构建项目（可选）**
    ```bash
    # 构建生产版本
-   npm run build
+   pnpm run build
    ```
 
-6. **启动应用**
+7. **启动应用**
    
    **开发模式（推荐用于开发）：**
    ```bash
-   npm run dev
+   pnpm run dev
    ```
    
    **生产模式（推荐用于部署）：**
    ```bash
    # 先构建项目
-   npm run build
+   pnpm run build
    
    # 启动生产服务器
-   npm start
+   pnpm start
    ```
 
-7. **访问应用**
+8. **访问应用**
    打开浏览器访问 [http://localhost:3000](http://localhost:3000)
 
 ### 🔧 常见问题排除
@@ -88,7 +98,7 @@
 **原因**：未安装项目依赖  
 **解决方案**：
 ```bash
-npm install
+pnpm install
 ```
 
 #### 问题 2: "supabaseUrl is required"
@@ -105,9 +115,24 @@ npm install
 **解决方案**：
 ```bash
 # 清理缓存并重新安装
-rm -rf node_modules package-lock.json .next
-npm install
-npm run build
+rm -rf node_modules pnpm-lock.yaml .next
+pnpm install
+pnpm run build
+```
+
+#### 问题 4: pnpm 命令不存在
+**原因**：未安装 pnpm 包管理器  
+**解决方案**：
+```bash
+# 方法 1：使用 npm 安装
+npm install -g pnpm
+
+# 方法 2：使用 corepack（推荐）
+corepack enable
+corepack prepare pnpm@latest --activate
+
+# 方法 3：如果仍使用 npm
+npm install  # 作为备选方案
 ```
 
 ### 📋 启动检查清单
@@ -115,11 +140,12 @@ npm run build
 在启动项目前，请确认以下步骤已完成：
 
 - [ ] ✅ 已安装 Node.js 18.0+
-- [ ] ✅ 已运行 `npm install` 安装依赖
+- [ ] ✅ 已安装 pnpm 包管理器
+- [ ] ✅ 已运行 `pnpm install` 安装依赖
 - [ ] ✅ 已创建并配置 `.env` 文件
 - [ ] ✅ Supabase 环境变量已正确设置
-- [ ] ✅ 项目构建成功（运行 `npm run build` 无错误）
-- [ ] ✅ 可以正常启动开发服务器（`npm run dev`）
+- [ ] ✅ 项目构建成功（运行 `pnpm run build` 无错误）
+- [ ] ✅ 可以正常启动开发服务器（`pnpm run dev`）
 
 ## 📋 功能特性
 
@@ -173,7 +199,7 @@ npm run build
 - **AI集成**：z-ai-web-dev-sdk
 
 ### 开发工具
-- **包管理**：npm
+- **包管理**：pnpm（推荐）
 - **代码质量**：ESLint + Prettier
 - **类型检查**：TypeScript
 - **构建工具**：Next.js
@@ -203,6 +229,8 @@ xiaohongka/
 ├── docs/                      # 文档
 ├── .env.local                 # 环境变量
 ├── package.json               # 项目配置
+├── pnpm-lock.yaml             # pnpm 锁文件
+├── pnpm-workspace.yaml        # pnpm 工作区配置
 ├── tailwind.config.js         # Tailwind 配置
 ├── tsconfig.json              # TypeScript 配置
 └── README.md                  # 项目说明
@@ -263,7 +291,14 @@ CREATE TABLE online_users (
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
    ```
 
-3. **自动部署**
+3. **配置构建设置（可选）**
+   ```bash
+   # 在 Vercel 项目设置中配置构建命令
+   # Build Command: pnpm run build
+   # Install Command: pnpm install
+   ```
+
+4. **自动部署**
    - 推送代码到 GitHub 主分支
    - Vercel 会自动构建和部署
 
@@ -280,11 +315,39 @@ docker run -p 3000:3000 --env-file .env.local xiaohongka
 ### 传统服务器部署
 
 ```bash
+# 安装 pnpm（如果尚未安装）
+npm install -g pnpm
+
+# 安装依赖
+pnpm install
+
 # 构建项目
-npm run build
+pnpm run build
 
 # 启动生产服务器
-npm start
+pnpm start
+```
+
+### 包管理器迁移说明
+
+如果项目之前使用 npm，现在迁移到 pnpm：
+
+```bash
+# 1. 删除旧的锁文件
+rm package-lock.json
+
+# 2. 安装 pnpm
+npm install -g pnpm
+
+# 3. 安装依赖
+pnpm install
+
+# 4. 测试构建
+pnpm run build
+
+# 5. 提交新的锁文件
+git add pnpm-lock.yaml
+git commit -m "feat: 迁移到 pnpm 包管理器"
 ```
 
 ## 📊 性能优化
@@ -324,13 +387,13 @@ npm start
 ### 运行测试
 ```bash
 # 运行单元测试
-npm test
+pnpm test
 
 # 运行端到端测试
-npm run test:e2e
+pnpm run test:e2e
 
 # 代码覆盖率
-npm run test:coverage
+pnpm run test:coverage
 ```
 
 ### 测试覆盖
@@ -381,6 +444,7 @@ npm run test:coverage
 
 ---
 
-**最后更新**：2025-06-23  
-**版本**：v2.2.0  
-**维护者**：Z.ai Code Team
+**最后更新**：2025-01-27  
+**版本**：v2.3.0  
+**维护者**：Z.ai Code Team  
+**包管理器**：pnpm（已从 npm 迁移）
