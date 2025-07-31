@@ -302,6 +302,178 @@ CREATE TABLE online_users (
    - 推送代码到 GitHub 主分支
    - Vercel 会自动构建和部署
 
+### Cloudflare Pages 部署
+
+⚠️ **重要提醒**：本项目使用了 Next.js API Routes，需要特殊处理才能在 Cloudflare Pages 上部署。
+
+#### 方案一：静态导出部署（推荐用于展示）
+
+1. **准备工作**
+   ```bash
+   # 确保项目已推送到 GitHub/GitLab
+   git push origin main
+   ```
+
+2. **使用专用配置文件**
+   ```bash
+   # 项目已包含 Cloudflare Pages 专用配置
+   # 文件：next.config.cloudflare.ts
+   
+   # 临时替换配置文件进行构建
+   cp next.config.cloudflare.ts next.config.ts
+   pnpm run build
+   ```
+
+3. **创建 Cloudflare Pages 项目**
+   - 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
+   - 进入 **Pages** 页面
+   - 点击 **创建项目** > **连接到 Git**
+   - 选择你的 GitHub/GitLab 仓库
+
+4. **配置构建设置**
+   ```bash
+   # 项目名称: xiaohongka (或自定义名称)
+   # 生产分支: main
+   # 构建命令: cp next.config.cloudflare.ts next.config.ts && pnpm run build
+   # 构建输出目录: out
+   # Root 目录: / (项目根目录)
+   ```
+
+5. **配置环境变量**
+   在 Cloudflare Pages 项目设置中添加：
+   ```bash
+   # 生产环境变量
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
+   NODE_VERSION=18
+   PNPM_VERSION=latest
+   ```
+
+6. **部署流程**
+   - 推送代码到主分支
+   - Cloudflare Pages 自动触发构建
+   - 构建完成后自动部署到全球 CDN
+
+#### 方案二：API Routes 迁移（完整功能）
+
+如需保留完整的 API 功能，需要将 API Routes 迁移到 Cloudflare Workers：
+
+1. **创建 Cloudflare Workers 项目**
+   ```bash
+   # 安装 Wrangler CLI
+   npm install -g wrangler
+   
+   # 创建新的 Workers 项目
+   wrangler init xiaohongka-api
+   cd xiaohongka-api
+   ```
+
+2. **迁移 API Routes**
+   ```typescript
+   // workers/src/index.ts
+   export default {
+     async fetch(request: Request): Promise<Response> {
+       const url = new URL(request.url);
+       
+       // 迁移 /api/counter 路由
+       if (url.pathname === '/api/counter') {
+         // 原 API 逻辑
+         return new Response(JSON.stringify({ visits: 100 }), {
+           headers: { 'Content-Type': 'application/json' }
+         });
+       }
+       
+       // 迁移 /api/ai/chat 路由
+       if (url.pathname === '/api/ai/chat') {
+         // 原 AI 聊天逻辑
+         return new Response(JSON.stringify({ message: 'Hello' }), {
+           headers: { 'Content-Type': 'application/json' }
+         });
+       }
+       
+       return new Response('Not Found', { status: 404 });
+     }
+   };
+   ```
+
+3. **部署 Workers**
+   ```bash
+   # 部署到 Cloudflare Workers
+   wrangler deploy
+   ```
+
+4. **更新前端 API 调用**
+   ```typescript
+   // 更新 API 基础 URL
+   const API_BASE_URL = 'https://xiaohongka-api.your-subdomain.workers.dev';
+   
+   // 更新 API 调用
+   const response = await fetch(`${API_BASE_URL}/api/counter`);
+   ```
+
+#### 方案三：使用 Supabase Edge Functions
+
+1. **创建 Edge Functions**
+   ```bash
+   # 在 Supabase 项目中创建 Edge Functions
+   supabase functions new counter
+   supabase functions new ai-chat
+   ```
+
+2. **迁移 API 逻辑**
+   ```typescript
+   // supabase/functions/counter/index.ts
+   import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+   
+   serve(async (req) => {
+     // 原 counter API 逻辑
+     return new Response(
+       JSON.stringify({ visits: 100 }),
+       { headers: { "Content-Type": "application/json" } },
+     )
+   })
+   ```
+
+3. **部署 Edge Functions**
+   ```bash
+   supabase functions deploy counter
+   supabase functions deploy ai-chat
+   ```
+
+4. **更新前端调用**
+   ```typescript
+   // 使用 Supabase Edge Functions
+   const { data } = await supabase.functions.invoke('counter');
+   ```
+
+### Cloudflare Pages 优势
+
+- ✅ **全球 CDN**：超过 200+ 边缘节点
+- ✅ **免费 SSL**：自动 HTTPS 证书
+- ✅ **无限带宽**：免费计划包含无限带宽
+- ✅ **快速构建**：平均构建时间 < 1 分钟
+- ✅ **预览部署**：每个 PR 自动生成预览链接
+- ✅ **回滚支持**：一键回滚到任意版本
+
+### Cloudflare Pages 注意事项
+
+⚠️ **重要限制**：
+- Cloudflare Pages 仅支持静态网站
+- 需要配置 `output: 'export'` 进行静态导出
+- API Routes 需要迁移到 Cloudflare Workers 或外部服务
+- 某些 Next.js 功能（如 ISR、SSR）不支持
+- 图片优化功能需要禁用
+
+💡 **推荐选择**：
+```bash
+# 根据项目需求选择部署方案：
+
+# 1. 仅展示静态内容 → Cloudflare Pages (方案一)
+# 2. 需要完整 API 功能 → Vercel 部署
+# 3. 高级用户 → Cloudflare Pages + Workers (方案二)
+# 4. 已使用 Supabase → Cloudflare Pages + Edge Functions (方案三)
+```
+
 ### Docker 部署
 
 ```bash
