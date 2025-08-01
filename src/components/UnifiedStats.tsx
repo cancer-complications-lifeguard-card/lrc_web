@@ -145,7 +145,7 @@ export default function UnifiedStats() {
     {
       id: 1,
       icon: Calendar,
-      value: new Date(visitData.date).toLocaleDateString('zh-CN', { 
+      value: new Date(visitData.date || new Date()).toLocaleDateString('zh-CN', { 
         month: '2-digit', 
         day: '2-digit' 
       }),

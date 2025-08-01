@@ -10,7 +10,7 @@ let localVisitData = {
   todayCount: 0,
   totalCount: 0,
   servedPatients: 0,
-  date: new Date().toDateString()
+  date: new Date().toISOString().split('T')[0]  // 使用 YYYY-MM-DD 格式
 };
 
 // 从文件加载数据
@@ -19,7 +19,22 @@ function loadLocalData() {
     if (fs.existsSync(dataFilePath)) {
       const rawData = fs.readFileSync(dataFilePath, 'utf8');
       const data = JSON.parse(rawData);
-      localVisitData = { ...localVisitData, ...data };
+      
+      // 检查是否是新的一天，如果是则重置今日计数
+      const today = new Date().toISOString().split('T')[0];
+      if (data.date && data.date !== today) {
+        // 新的一天，重置今日计数，保留总计数
+        localVisitData = {
+          todayCount: 0,
+          totalCount: data.totalCount || 0,
+          servedPatients: data.servedPatients || 0,
+          date: today
+        };
+        // 立即保存更新后的数据
+        saveLocalData();
+      } else {
+        localVisitData = { ...localVisitData, ...data };
+      }
     }
   } catch (error) {
     console.warn('Failed to load local data:', error);
@@ -52,6 +67,9 @@ export async function GET() {
       HAS_SUPABASE_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     });
 
+    // 确保数据是最新的
+    loadLocalData();
+
     // 优先尝试使用 Supabase（无论什么环境）
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       try {
@@ -65,7 +83,7 @@ export async function GET() {
             todayCount: data?.todayVisits || 0,
             totalCount: data?.totalVisits || 0,
             servedPatients: data?.servedPatients || 0,
-            date: new Date().toDateString()
+            date: new Date().toISOString().split('T')[0]
           });
         } else {
           console.warn('Supabase get-visit-stats failed:', error);
@@ -117,7 +135,7 @@ export async function POST(request: NextRequest) {
             todayCount: data?.todayVisits || 0,
             totalCount: data?.totalVisits || 0,
             servedPatients: data?.servedPatients || 0,
-            date: new Date().toDateString()
+            date: new Date().toISOString().split('T')[0]
           });
         } else {
           console.warn('Supabase increment-visit failed:', error);
@@ -130,8 +148,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 使用本地数据作为回退
-    const today = new Date().toDateString();
+    const today = new Date().toISOString().split('T')[0];  // 使用 YYYY-MM-DD 格式
     if (localVisitData.date !== today) {
+      // 新的一天，重置今日计数，但保留总计数
       localVisitData = {
         todayCount: 1,
         totalCount: localVisitData.totalCount + 1,

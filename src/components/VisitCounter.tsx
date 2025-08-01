@@ -182,7 +182,7 @@ export default function VisitCounter() {
           <div className="flex items-center justify-center space-x-2 mb-2">
             <Calendar className="h-5 w-5 text-green-500" />
             <span className="text-lg font-bold text-green-600 dark:text-green-400">
-              {new Date(visitData.date).toLocaleDateString('zh-CN')}
+              {new Date(visitData.date || new Date()).toLocaleDateString('zh-CN')}
             </span>
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
