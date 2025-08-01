@@ -34,8 +34,10 @@ function saveLocalData() {
       fs.mkdirSync(dbDir, { recursive: true });
     }
     fs.writeFileSync(dataFilePath, JSON.stringify(localVisitData, null, 2));
+    console.log('Local data saved successfully to:', dataFilePath);
   } catch (error) {
-    console.warn('Failed to save local data:', error);
+    console.warn('Failed to save local data (using in-memory only):', error);
+    // 在容器环境中，如果无法写入文件，我们仍然可以使用内存数据
   }
 }
 
@@ -44,6 +46,12 @@ loadLocalData();
 
 export async function GET() {
   try {
+    console.log('GET request - Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
+      HAS_SUPABASE_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    });
+
     // 优先尝试使用 Supabase（无论什么环境）
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       try {
@@ -51,6 +59,7 @@ export async function GET() {
         const { data, error } = await supabase.functions.invoke('get-visit-stats');
         
         if (!error && data) {
+          console.log('Successfully retrieved data from Supabase');
           return NextResponse.json({
             success: true,
             todayCount: data?.todayVisits || 0,

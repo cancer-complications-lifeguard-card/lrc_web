@@ -1,0 +1,36 @@
+services:
+  app:
+    # 使用公开的预构建镜像
+    image: ghcr.io/cancer-complications-lifeguard-card/lrc:latest
+    # 如果 GitHub Container Registry 不可用，可以使用阿里云镜像
+    # image: crpi-gy45dxxqbfmdtsvs.cn-beijing.personal.cr.aliyuncs.com/liueic-github/xiaohongka_web:latest
+    
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # 从 .env 文件或环境变量中读取配置
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - DATABASE_URL=${DATABASE_URL:-file:./db/custom.db}
+    volumes:
+      # 挂载数据目录以便持久化本地数据
+      - ./data:/app/db
+    restart: unless-stopped
+    container_name: xiaohongka_web
+
+  # 可选：如果需要本地数据库，可以添加 PostgreSQL 服务
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_DB: xiaohongka
+  #     POSTGRES_USER: ${DB_USER:-xiaohongka}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-your_password_here}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   restart: unless-stopped
+
+# volumes:
+#   postgres_data:
