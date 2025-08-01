@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
+
+// 数据文件路径
+const dataFilePath = path.join(process.cwd(), 'db', 'visit-data.json');
 
 // 本地数据存储（用于开发环境和构建环境）
 let localVisitData = {
@@ -8,10 +13,39 @@ let localVisitData = {
   date: new Date().toDateString()
 };
 
+// 从文件加载数据
+function loadLocalData() {
+  try {
+    if (fs.existsSync(dataFilePath)) {
+      const rawData = fs.readFileSync(dataFilePath, 'utf8');
+      const data = JSON.parse(rawData);
+      localVisitData = { ...localVisitData, ...data };
+    }
+  } catch (error) {
+    console.warn('Failed to load local data:', error);
+  }
+}
+
+// 保存数据到文件
+function saveLocalData() {
+  try {
+    const dbDir = path.dirname(dataFilePath);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+    fs.writeFileSync(dataFilePath, JSON.stringify(localVisitData, null, 2));
+  } catch (error) {
+    console.warn('Failed to save local data:', error);
+  }
+}
+
+// 初始化时加载数据
+loadLocalData();
+
 export async function GET() {
   try {
-    // 在生产环境中尝试使用 Supabase
-    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    // 优先尝试使用 Supabase（无论什么环境）
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       try {
         const { supabase } = await import('@/lib/supabase');
         const { data, error } = await supabase.functions.invoke('get-visit-stats');
@@ -24,10 +58,14 @@ export async function GET() {
             servedPatients: data?.servedPatients || 0,
             date: new Date().toDateString()
           });
+        } else {
+          console.warn('Supabase get-visit-stats failed:', error);
         }
       } catch (supabaseError) {
-        console.warn('Supabase not available, using local data:', supabaseError);
+        console.warn('Supabase connection failed, using local data:', supabaseError);
       }
+    } else {
+      console.warn('Supabase URL not configured, using local data');
     }
 
     // 使用本地数据作为回退
@@ -46,8 +84,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // 在生产环境中尝试使用 Supabase
-    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    // 优先尝试使用 Supabase（无论什么环境）
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       try {
         const { supabase } = await import('@/lib/supabase');
         const { searchParams } = new URL(request.url);
@@ -63,7 +101,7 @@ export async function POST(request: NextRequest) {
                          request.headers.get('x-real-ip') || 
                          'unknown';
 
-          console.log(`New visit from ${clientIP}. Today: ${data?.todayVisits || 0}, Total: ${data?.totalVisits || 0}`);
+          console.log(`Supabase visit from ${clientIP}. Today: ${data?.todayVisits || 0}, Total: ${data?.totalVisits || 0}`);
 
           return NextResponse.json({
             success: true,
@@ -72,10 +110,14 @@ export async function POST(request: NextRequest) {
             servedPatients: data?.servedPatients || 0,
             date: new Date().toDateString()
           });
+        } else {
+          console.warn('Supabase increment-visit failed:', error);
         }
       } catch (supabaseError) {
-        console.warn('Supabase not available, using local data:', supabaseError);
+        console.warn('Supabase connection failed, using local data:', supabaseError);
       }
+    } else {
+      console.warn('Supabase URL not configured, using local data');
     }
 
     // 使用本地数据作为回退
@@ -92,6 +134,9 @@ export async function POST(request: NextRequest) {
       localVisitData.totalCount++;
       localVisitData.servedPatients++;
     }
+
+    // 保存到文件以确保持久化
+    saveLocalData();
 
     const clientIP = request.headers.get('x-forwarded-for') || 
                    request.headers.get('x-real-ip') || 
