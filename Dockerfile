@@ -1,23 +1,22 @@
-# ---------- 构建阶段 ----------
-FROM node:20-alpine AS builder
-
+# ---------- 依赖安装阶段 ----------
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# 安装系统依赖
-RUN apk add --no-cache libc6-compat
-RUN npm install -g pnpm
+# 只复制包管理文件
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack enable pnpm && pnpm install --frozen-lockfile
 
-# 复制依赖文件并安装
-COPY package.json ./
-COPY pnpm-lock.yaml ./
-COPY pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+# ---------- 构建阶段 ----------
+FROM node:20-alpine AS builder
+WORKDIR /app
 
-# 复制源代码
+# 复制依赖
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # 生成 Prisma 客户端
-RUN pnpm db:generate
+RUN corepack enable pnpm && pnpm db:generate
 
 # 设置构建环境变量
 ARG NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co
@@ -27,39 +26,29 @@ ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # 构建应用
-RUN pnpm run build
-
-# 清理开发依赖，只保留生产依赖
-RUN pnpm prune --prod && pnpm store prune
+RUN corepack enable pnpm && pnpm run build
 
 # ---------- 运行阶段 ----------
 FROM node:20-alpine AS runner
-
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# 创建用户
+# 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# 复制必要文件
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/pnpm-lock.yaml ./pnpm-lock.yaml
-COPY --from=builder /app/next.config.ts ./next.config.ts
-COPY --from=builder /app/prisma ./prisma
+# 复制 standalone 构建输出
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# 安装运行时需要的工具
-RUN npm install -g pnpm
-
-# 设置权限
-RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["pnpm", "start"]
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
